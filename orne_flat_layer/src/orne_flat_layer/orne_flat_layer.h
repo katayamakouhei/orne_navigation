@@ -1,5 +1,5 @@
-#ifndef _MOVABLE_H_
-#define _MOVABLE_H_
+#ifndef _ORNEFLAT_H_
+#define _ORNEFLAT_H_
 #include <ros/ros.h>
 #include <costmap_2d/layer.h>
 #include <costmap_2d/layered_costmap.h>
@@ -7,12 +7,12 @@
 #include <dynamic_reconfigure/server.h>
 #include <queue>
 
-namespace movable_layer_namespace
+namespace orne_flat_layer_namespace
 {
-class MovableLayer : public costmap_2d::Layer, public costmap_2d::Costmap2D
+class OrneFlatLayer : public costmap_2d::Layer, public costmap_2d::Costmap2D
 {
 public:
-    MovableLayer();
+    OrneFlatLayer();
 
     virtual void onInitialize();
     virtual void updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x, double* min_y, double* max_x, double* max_y);

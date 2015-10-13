@@ -1,41 +1,41 @@
-#include "movable_layer.h"
+#include "orne_flat_layer.h"
 #include <pluginlib/class_list_macros.h>
 
-PLUGINLIB_EXPORT_CLASS(movable_layer_namespace::MovableLayer, costmap_2d::Layer)
+PLUGINLIB_EXPORT_CLASS(orne_flat_layer_namespace::OrneFlatLayer, costmap_2d::Layer)
 
     using costmap_2d::LETHAL_OBSTACLE;
     using costmap_2d::INSCRIBED_INFLATED_OBSTACLE;
     using costmap_2d::NO_INFORMATION;
     using costmap_2d::FREE_SPACE;
 
-    namespace movable_layer_namespace
+    namespace orne_flat_layer_namespace
 {
 
-    MovableLayer::MovableLayer() {}
+    OrneFlatLayer::OrneFlatLayer() {}
 
-    void MovableLayer::onInitialize()
+    void OrneFlatLayer::onInitialize()
     {
         ros::NodeHandle nh("~/" + name_);
         current_ = true;
 
         dsrv_ = new dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>(nh);
         dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>::CallbackType cb = boost::bind(
-                &MovableLayer::reconfigureCB, this, _1, _2);
+                &OrneFlatLayer::reconfigureCB, this, _1, _2);
         dsrv_->setCallback(cb);
     }
 
-    void MovableLayer::matchSize()
+    void OrneFlatLayer::matchSize()
     {
         Costmap2D* master = layered_costmap_->getCostmap();
         resizeMap(master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(), master->getOriginX(), master->getOriginY());
     }
 
-    void MovableLayer::reconfigureCB(costmap_2d::GenericPluginConfig &config, uint32_t level)
+    void OrneFlatLayer::reconfigureCB(costmap_2d::GenericPluginConfig &config, uint32_t level)
     {
         enabled_=config.enabled;
     }
 
-    void MovableLayer::updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x, double* min_y, double* max_x, double* max_y)
+    void OrneFlatLayer::updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x, double* min_y, double* max_x, double* max_y)
     {
         if(!enabled_)
             return;
@@ -52,7 +52,7 @@ PLUGINLIB_EXPORT_CLASS(movable_layer_namespace::MovableLayer, costmap_2d::Layer)
         *max_y = std::max(*max_y, mark_y_);
     }
 
-    void MovableLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j)
+    void OrneFlatLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j)
     {   
         if (!enabled_)
             return;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(orne_navigation_executor_add_movable_layer)
+project(orne_flat_layer)
 
 find_package(catkin REQUIRED COMPONENTS
   move_base_msgs
@@ -28,8 +28,8 @@ include_directories(
   ${yaml-cpp_INCLUDE_DIRS}
 )
 
-add_library(movable_layer
-    src/movable_layer/movable_layer.cpp
+add_library(orne_flat_layer
+    src/orne_flat_layer/orne_flat_layer.cpp
 )
 
 ## Install ##

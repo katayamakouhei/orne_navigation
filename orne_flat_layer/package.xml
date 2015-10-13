@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <package>
-  <name>orne_navigation_executor_add_movable_layer</name>
+  <name>orne_flat_layer</name>
   <version>0.1.3</version>
-  <description>The orne_navigation package add movable layer</description>
+  <description>orne_navigation_executor(play_waypoint_nav.launch) with orne_flat_layer</description>
   
-  <maintainer email="user@todo.todo">user</maintainer>
+  <maintainer email="todo@todo.todo">user</maintainer>
   <license>BSD</license>
   
   <buildtool_depend>catkin</buildtool_depend>

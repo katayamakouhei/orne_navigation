@@ -1,7 +1,0 @@
-<class_libraries>
-    <library path="lib/libmovable_layer">
-        <class type="movable_layer_namespace::MovableLayer" base_class_type="costmap_2d::Layer">
-            <description>add movable layer</description>
-        </class>
-    </library>
-</class_libraries>
