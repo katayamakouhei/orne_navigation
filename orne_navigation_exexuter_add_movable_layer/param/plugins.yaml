@@ -1,0 +1,22 @@
+plugins:
+    - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+    - {name: movable_layer, type: "movable_layer_namespace::MovableLayer"}
+    - {name: scan_obstacle, type: "costmap_2d::ObstacleLayer"}
+    - {name: scan_inflation, type: "costmap_2d::InflationLayer"}
+
+obstacle__range: 2.5
+max_obstacle_height: 2.0
+raytrace_range: 3.0
+
+obstacle_layer:
+     observation_sources: point_cloud
+     point_cloud: {data_type: PointCloud2, topic: /filtered_cloud, marking: true, clearing: true}
+     #scan: {data_type: LaserScan, topic: /scan, marking: true, clearing: true, min_obstacle_height: 0, max_obstacle_height: 1.0}
+
+scan_obstacle:
+     observation_sources: scan obstacle_cloud
+     scan: {data_type: LaserScan, topic: /scan, marking: true, clearing: true, min_obstacle_height: 0, max_obstacle_height: 1.0}
+     obstacle_cloud: {data_type: PointCloud2, topic: /obstacle_cloud, marking: true, clearing: true}
+
+
