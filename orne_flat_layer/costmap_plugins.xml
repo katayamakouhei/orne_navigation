@@ -1,6 +1,6 @@
 <class_libraries>
     <library path="lib/liborne_flat_layer">
-        <class type="orne_flat_layer_namespace::MovableLayer" base_class_type="costmap_2d::Layer">
+        <class type="orne_flat_layer_namespace::OrneFlatLayer" base_class_type="costmap_2d::Layer">
             <description>Layer to detect whether the flat road</description>
         </class>
     </library>
