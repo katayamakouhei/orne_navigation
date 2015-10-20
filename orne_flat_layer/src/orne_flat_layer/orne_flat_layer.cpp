@@ -66,7 +66,7 @@ PLUGINLIB_EXPORT_CLASS(orne_flat_layer_namespace::OrneFlatLayer, costmap_2d::Lay
                      master_grid.setCost(i, j, FREE_SPACE);
                      continue;
                  }
-                master_grid.setCost(i, j, NO_INFORMATION);
+                master_grid.setCost(i, j, INSCRIBED_INFLATED_OBSTACLE);
             }
         }
     }
