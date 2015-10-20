@@ -18,4 +18,8 @@
     <rosparam file="$(find orne_navigation_executor)/param/base_local_planner_params.yaml" command="load"/>
     <rosparam file="$(find orne_navigation_executor)/param/recovery_params.yaml" command="load"/>
   </node>
+    <!-- Publishes the voxel grid to rviz for display -->
+  <node pkg="costmap_2d" type="costmap_2d_markers" name="voxel_visualizer">
+      <!--<remap from="voxel_grid" to="/move_base/local_costmap/point_cloud_obstacle"/>-->
+  </node>
 </launch>
