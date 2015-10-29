@@ -25,7 +25,7 @@ PLUGINLIB_EXPORT_CLASS(orne_flat_layer_namespace::OrneFlatLayer, costmap_2d::Lay
     if(track_unknown_space)
       default_value_ = NO_INFORMATION;
     else
-      default_value_ = 50;
+      default_value_ = 5;
 
     ObstacleLayer::matchSize();
     current_ = true;
@@ -121,10 +121,10 @@ PLUGINLIB_EXPORT_CLASS(orne_flat_layer_namespace::OrneFlatLayer, costmap_2d::Lay
       {
         boost::shared_ptr < message_filters::Subscriber<sensor_msgs::LaserScan>
           > sub(new message_filters::Subscriber<sensor_msgs::LaserScan>(g_nh, topic, 50));
-      
+
         boost::shared_ptr < tf::MessageFilter<sensor_msgs::LaserScan>
           > filter(new tf::MessageFilter<sensor_msgs::LaserScan>(*sub, *tf_, global_frame_, 50));
-      
+
         // if (inf_is_valid)
         // {
         //   filter->registerCallback(
