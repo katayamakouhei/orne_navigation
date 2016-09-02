@@ -5,29 +5,7 @@
 
   <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file).yaml"/>
 
-  <node pkg="traversal_layer" type="image_publisher" name="image_publisher"/>
-
-  <rosparam command="load" file="$(find grid_map_demos)/config/image_to_gridmap_demo.yaml" />
-  <node pkg="grid_map_demos" type="image_to_gridmap_demo" name="image_to_gridmap_demo" output="screen" />
-  <!-- Launch the grid map visualizer -->
-  <node pkg="grid_map_visualization" type="grid_map_visualization" name="grid_map_visualization" output="screen" />
-
-  <!-- Launch RViz with the demo configuration -->
-  <!--<node name="rviz" pkg="rviz" type="rviz" args="-d $(find grid_map_demos)/rviz/grid_map_demo.rviz" />-->
-
-  <node pkg="traversal_layer" type="traversal_layer" name="traversal_layer"/>
-
-  <node pkg="octomap_server" type="octomap_server_node" name="octomap" output="screen">
-    <param name="resolution" value="0.05"/>
-    <param name="frame_id" value="/map"/>
-    <param name="base_frame_id" value="/base_link"/>
-    <remap from="/cloud_in" to="/untraversal_cloud"/>
-    <remap from="/projected_map" to="/map_for_costmap"/>
-  </node>
-<!--  <node name="map_server_for_costmap" pkg="map_server" type="map_server" args="$(arg map_file)_for_costmap.yaml">
-    <remap from="/map" to="/map_for_costmap"/>
-    <param name="frame_id" value="/map_for_costmap"/>
-  </node-->
+  <include file="$(find traversal_layer)/launch/dvide_layer.launch"/>
 
   <include file="$(find orne_navigation_executor)/launch/move_base.launch">
     <arg name="odom_topic" value="combined_odom"/>
