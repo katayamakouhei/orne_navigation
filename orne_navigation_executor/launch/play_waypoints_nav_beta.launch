@@ -15,6 +15,7 @@
 
   <node name="tsukuba_challenge_strategy" pkg="orne_strategy" type="tsukuba_challenge" output="screen">
       <rosparam file="$(find orne_strategy)/suspend_cfg/suspend.yaml" command="load"/>
+      <param name="is_search" value="True" />
   </node>
 </launch>
 
