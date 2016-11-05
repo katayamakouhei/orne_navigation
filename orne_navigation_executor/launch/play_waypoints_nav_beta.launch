@@ -10,10 +10,12 @@
 
   <node name="waypoints_nav" pkg="fulanghua_waypoints_nav" type="waypoints_nav" output="screen">
     <param name="filename" value="$(arg waypoints_file)"/>
+    <param name="dist_err" value="1.0"/>
   </node>
 
   <node name="tsukuba_challenge_strategy" pkg="orne_strategy" type="tsukuba_challenge" output="screen">
       <rosparam file="$(find orne_strategy)/suspend_cfg/suspend.yaml" command="load"/>
       <rosparam file="$(find orne_strategy)/search_cfg/search_area.yaml" command="load"/>
+      <param name="is_search" value="True" />
   </node>
 </launch>
