@@ -1,22 +1,66 @@
 #!/usr/bin/env python
+# vim:fileencoding=utf-8
 
 import rospy
-import geometry_msgs.msg
+from geometry_msgs.msg import *
+from std_msgs.msg import *
 import tf
 import math
 from std_srvs.srv import Trigger
 from fulanghua_srvs.srv import Pose
+from espeak import espeak
+
+class GoalManager:
+    def __init__(self, nav_publisher, world_frame, robot_frame):
+        self.nav_publisher = nav_publisher
+        self.tf_listener = tf.TransformListener()
+
+        self.world_frame = world_frame
+        self.robot_frame = robot_frame
+
+    def set_goal(self, goal_pose):
+        self.goal_pose = goal_pose
+
+    def get_goal(self):
+        return self.goal_pose
+
+    def start_nav(self):
+        self.nav_publisher.publish(self.goal_pose)
+
+    def is_arrive_goal(self,dist_thr=1.0):
+        try:
+            (trans, rot) = self.tf_listener.lookupTransform(self.world_frame, self.robot_frame, rospy.Time(0))
+            x = trans[0]
+            y = trans[1]
+
+            dist = math.sqrt(math.pow(x - self.goal_pose.pose.position.x, 2) + math.pow(y - self.goal_pose.pose.position.y, 2))
+
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            return False
+
+        if dist < dist_thr:
+            return True
+        else:
+            return False
 
 class TsukubaChallengeStrategy:
     def __init__(self):
         rospy.init_node('tsukuba_challenge_strategy')
         self.start_nav_server = rospy.Service('start_nav', Trigger, self.start_nav_callback)
         self.resume_nav_server = rospy.Service('resume_nav', Trigger, self.resume_nav_callback)
-        
+
+        rospy.Subscriber('/target_point', PointStamped, self.target_position_cb, queue_size=10)
+        rospy.Subscriber('/move_base/current_goal', PoseStamped, self.goal_cb, queue_size=10)
+
+        self.goal_pose_pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+
         suspend_pose_cfg = rospy.get_param('~suspend_pose')
         resume_pose_cfg = rospy.get_param('~resume_pose')
         self.world_frame = rospy.get_param('~world_frame', 'map')
         self.robot_frame = rospy.get_param('~robot_frame', 'base_link')
+        self.target_position = geometry_msgs.msg.PoseStamped()
+        self.is_search = rospy.get_param('~is_search', False)
+        self.search_rect = rospy.get_param('~search_rect',[[0,0],[0,0]])
 
         self.suspend_pose = geometry_msgs.msg.Pose()
         self.suspend_pose.position.x = suspend_pose_cfg['position']['x']
@@ -26,7 +70,7 @@ class TsukubaChallengeStrategy:
         self.suspend_pose.orientation.y = suspend_pose_cfg['orientation']['y']
         self.suspend_pose.orientation.z = suspend_pose_cfg['orientation']['z']
         self.suspend_pose.orientation.w = suspend_pose_cfg['orientation']['w']
-        
+
         self.resume_pose = geometry_msgs.msg.Pose()
         self.resume_pose.position.x = resume_pose_cfg['position']['x']
         self.resume_pose.position.y = resume_pose_cfg['position']['y']
@@ -40,6 +84,25 @@ class TsukubaChallengeStrategy:
         print "resume_pose = " + str(self.resume_pose)
 
         self.tf_listener = tf.TransformListener()
+        self.goal_manager = GoalManager(self.goal_pose_pub, self.world_frame, self.robot_frame)
+
+        self.aproach_flag = False
+        self.is_last_wp = False
+        self.wp_list = []
+        self.now_goal = PoseStamped()
+        self.state = 'not_search'
+        self.is_restart = False
+
+    def target_position_cb(self, data):
+        if not self.aproach_flag:
+            self.target_position.header=Header(stamp=rospy.Time(0),frame_id=self.world_frame)
+            self.target_position.pose.position = data.point
+            self.target_position.pose.orientation = Quaternion(0.0,0.0,0.0,1.0)
+            self.aproach_flag = True
+
+    def goal_cb(self, data):
+        rospy.loginfo('get_new_goal')
+        self.now_goal = data
 
     def start_nav_callback(self, req):
         try:
@@ -61,21 +124,166 @@ class TsukubaChallengeStrategy:
         except rospy.ServiceException, e:
             print "error: %s" % e
 
+    def get_now_pose(self):
+        ident = PoseStamped(
+            header=Header(
+                stamp=rospy.Time(0),
+                frame_id=self.robot_frame
+            ),
+            pose=geometry_msgs.msg.Pose()
+        )
+        robot_pose = PoseStamped()
+        try:
+            robot_pose = self.tf_listener.transformPose(self.world_frame, ident)
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            rospy.loginfo('tf except')
+        return robot_pose
+
+    def is_in_search_area(self):
+        now_pose = self.get_now_pose()
+        x = now_pose.pose.position.x
+        y = now_pose.pose.position.y
+
+        if x > self.search_rect[0][0] and y > self.search_rect[0][1] and x < self.search_rect[1][0] and y < self.search_rect[1][1]:
+            return True
+        else:
+            return False
+
+    def get_distance(self, pose1, pose2):
+        x1 = pose1.pose.position.x
+        y1 = pose1.pose.position.y
+        x2 = pose2.pose.position.x
+        y2 = pose2.pose.position.y
+        return math.sqrt(math.pow(x1 - x2, 2) + math.pow(y1 - y2, 2))
+
+    def init_search_target(self):
+        self.state = 'not_search'
+        self.is_last_wp = False
+        self.wp_list = []
+        self.aproach_flag = False
+        self.is_restart = False
+
     def spin(self):
         rate = rospy.Rate(10)
         already_send_suspend_pose = False
+        self.state = 'not_search'
         while not rospy.is_shutdown():
             rate.sleep()
-            
-            try:
+            rospy.loginfo(self.state)
+            if self.state == 'not_search':
+                if self.is_search and self.is_in_search_area():
+                    self.state = 'search'
+
+            elif self.state == 'search':
+                if self.aproach_flag:
+                    self.state = 'search_near_point'
+
+            elif self.state == 'search_near_point':
+                #ウェイポイントがリストに登録されていない場合は今のwpを登録する
+                rospy.loginfo(len(self.wp_list))
+                if not self.wp_list or self.now_goal is not self.wp_list[-1][0]:
+                    if self.is_last_wp:
+                        self.state = 'reverse_near_point'
+                        continue
+                    self.wp_list.append([self.now_goal,0])
+                    if len(self.wp_list) > 1:
+
+                        distance_now_wp = self.get_distance(self.wp_list[-1][0], self.target_position)
+                        distance_before_wp = self.get_distance(self.wp_list[-2][0], self.target_position)
+                        if distance_now_wp > distance_before_wp:
+                            self.is_last_wp = True
+                # ウェイポイントが登録されている場合
+                else:
+                    # nearポイントが登録されていない場合
+                    print self.wp_list[-1][1]
+                    if self.wp_list[-1][1] is 0:
+                        self.wp_list[-1][1] = self.get_now_pose()
+                    else:
+                        distance_now = self.get_distance(self.get_now_pose(), self.target_position)
+                        distance_min = self.get_distance(self.wp_list[-1][1],self.target_position)
+
+                        if distance_now < distance_min:
+                            self.wp_list[-1][1] = self.get_now_pose()
+
+            elif self.state == 'reverse_near_point':
+                self.wp_list.reverse()
+                self.state = 'back_trace_wp'
+
+            elif self.state == 'back_trace_wp':
+                most_near_point = self.wp_list[0][1]
+                print self.wp_list
+                print most_near_point
+                most_near_point_num = 0
+                for i,wp in enumerate(self.wp_list):
+                    print wp
+                    most_near_distance = self.get_distance(most_near_point, self.target_position)
+                    wp_near_distance = self.get_distance(wp[1], self.target_position)
+                    if wp_near_distance < most_near_distance:
+                        most_near_distance = wp_near_distance
+                        most_near_point_num = i
+                back_trace_wp = []
+                j=0
+                for j in range(most_near_point_num):
+                    back_trace_wp.append(self.wp_list[j][0])
+                back_trace_wp.append(self.wp_list[j][1])
+                wp = back_trace_wp.pop()
+                rospy.wait_for_service('resume_wp_pose')
+                resume_wp_nav = rospy.ServiceProxy('resume_wp_pose', Pose)
+                self.goal_manager.set_goal(wp)
+                self.goal_manager.start_nav()
+                self.state = 'aproach_near_point'
+
+            elif self.state == 'aproach_near_point':
+                if len(back_trace_wp) > 0:
+                    if self.goal_manager.is_arrive_goal():
+                        wp = back_trace_wp.pop()
+                        self.goal_manager.set_goal(wp)
+                        self.goal_manager.start_nav()
+                else:
+                    self.state = 'wait_near_point'
+
+            elif self.state == 'wait_near_point':
+                if self.goal_manager.is_arrive_goal():
+                    self.state = 'aproach_target_point'
+
+            elif self.state == 'aproach_target_point':
+                self.goal_manager.set_goal(self.target_position)
+                self.goal_manager.start_nav()
+                self.state = 'wait_target_point'
+
+            elif self.state == 'wait_target_point':
+                if self.goal_manager.is_arrive_goal(dist_thr=3.0):
+                    self.state = 'stop_target_nav'
+
+            elif self.state == 'stop_target_nav':
+                now_pose = self.get_now_pose()
+                now_pose.pose.orientation = Quaternion(0.0,0.0,0.0,1.0)
+                print now_pose
+                self.goal_manager.set_goal(now_pose)
+                self.goal_manager.start_nav()
+                self.state = 'wait_stop_nav'
+
+            elif self.state == 'wait_stop_nav':
+                if self.goal_manager.is_arrive_goal():
+                    espeak.synth('I found a subject')
+                    self.state = 'restart_waypoints_nav'
+
+            elif self.state == 'restart_waypoints_nav':
+                if not self.is_restart:
+                    rospy.wait_for_service('start_wp_nav')
+                    start_wp_nav = rospy.ServiceProxy('start_wp_nav', Trigger)
+                    self.is_restart = start_wp_nav
+                    self.init_search_target()
+
+            '''try:
                 (trans, rot) = self.tf_listener.lookupTransform(self.world_frame, self.robot_frame, rospy.Time(0))
                 x = trans[0]
                 y = trans[1]
 
                 dist = math.sqrt(math.pow(x - self.suspend_pose.position.x, 2) + math.pow(y - self.suspend_pose.position.y, 2))
 
-                print "robot_gl = ("  + str(x) + ", " + str(y) + ")"
-                print "dist = " + str(dist)
+                #print "robot_gl = ("  + str(x) + ", " + str(y) + ")"
+                #print "dist = " + str(dist)
 
                 if(dist < 1.0) and not already_send_suspend_pose:
                     rospy.loginfo('strategy: send suspending request')
@@ -85,9 +293,8 @@ class TsukubaChallengeStrategy:
                     already_send_suspend_pose = True
 
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                continue
+                continue'''
 
 if __name__ == '__main__':
     strategy = TsukubaChallengeStrategy()
     strategy.spin()
-
